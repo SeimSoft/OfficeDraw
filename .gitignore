@@ -1,0 +1,25 @@
+# macOS / editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Flutter / Android build output (see also officedraw_app/.gitignore)
+officedraw_app/build/
+officedraw_app/.dart_tool/
+
+# Logs
+*.log
+
+# Local Claude Code state
+.claude/

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "officedraw"
+version = "0.1.0"
+description = "Teile einen Bildschirmausschnitt per USB mit der OfficeDraw Android-App und zeichne live darauf."
+requires-python = ">=3.10"
+dependencies = [
+    "PySide6>=6.7",
+    "mss>=9.0",
+    "pyobjc-framework-Cocoa>=10.0; sys_platform == 'darwin'",
+]
+
+[project.scripts]
+officedraw = "officedraw.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/officedraw"]
