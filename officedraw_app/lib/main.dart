@@ -62,6 +62,7 @@ class _DrawScreenState extends State<DrawScreen> {
   void initState() {
     super.initState();
     _connection.onConnected = _model.sendScene;
+    _connection.onClearRequested = _model.clear;
     _connection.start();
     // Double tap on the pen (see MainActivity.kt) switches between pen and eraser.
     _penChannel.setMethodCallHandler((call) async {

@@ -22,6 +22,9 @@ class DesktopConnection extends ChangeNotifier {
   /// Called after every (re)connect so the desktop app gets the full drawing.
   VoidCallback? onConnected;
 
+  /// Called when the desktop app asks to remove all strokes.
+  VoidCallback? onClearRequested;
+
   Socket? _socket;
   MessageReader _reader = MessageReader();
   Timer? _retryTimer;
@@ -96,7 +99,9 @@ class DesktopConnection extends ChangeNotifier {
   }
 
   void _onJson(Map<String, dynamic> message) {
-    if (message['t'] == 'bg') {
+    if (message['t'] == 'clear') {
+      onClearRequested?.call();
+    } else if (message['t'] == 'bg') {
       _background = BackgroundMode.values.asNameMap()[message['mode']] ?? BackgroundMode.none;
       notifyListeners();
     }

@@ -50,6 +50,7 @@ class OfficeDrawApp(QObject):
         self._frame.viewer_toggled.connect(self._toggle_viewer)
         self._frame.quit_requested.connect(self.quit)
         self._frame.background_requested.connect(self._set_background)
+        self._frame.clear_requested.connect(self._clear_strokes)
         self._viewer.visibility_changed.connect(self._frame.set_viewer_visible)
 
     def start(self) -> None:
@@ -113,6 +114,14 @@ class OfficeDrawApp(QObject):
         self._viewer.update()
         if notify_tablet:
             self._server.send_json({"t": "bg", "mode": mode})
+
+    def _clear_strokes(self) -> None:
+        # The tablet owns the drawing (it re-sends everything on connect), so it is
+        # asked to clear too; there the clear can also be undone.
+        self._scene.apply({"t": "scene", "strokes": []})
+        self._overlay.update()
+        self._viewer.update()
+        self._server.send_json({"t": "clear"})
 
     def _on_message(self, message: object) -> None:
         if not isinstance(message, dict):

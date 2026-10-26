@@ -21,7 +21,7 @@ from .platform_support import (
 EDGE = 10  # grab band left, right and below the region
 BAR = 30  # top bar above the region
 CORNER = 22  # corners catch a bit more than the edge band
-MIN_WIDTH = 360  # room for the buttons in the top bar
+MIN_WIDTH = 430  # room for the buttons in the top bar
 MIN_HEIGHT = 120
 
 ACCENT = QColor("#2E86FF")
@@ -54,6 +54,7 @@ class RegionFrame(QObject):
     viewer_toggled = Signal()
     quit_requested = Signal()
     background_requested = Signal(str)  # "none", "white" or "black"
+    clear_requested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -130,6 +131,7 @@ class RegionFrame(QObject):
             ("share", "Teilen", 64, self._viewer_visible),
             ("black", "Schwarz", 70, self._background == "black"),
             ("white", "Weiß", 52, self._background == "white"),
+            ("clear", "Löschen", 66, False),
         ]
         buttons = []
         right = self.width() - EDGE - 2
@@ -186,6 +188,8 @@ class RegionFrame(QObject):
             self.quit_requested.emit()
         elif button == "share":
             self.viewer_toggled.emit()
+        elif button == "clear":
+            self.clear_requested.emit()
         elif button in ("white", "black"):
             # Clicking the active background again goes back to the transparent view.
             self.background_requested.emit(
