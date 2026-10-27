@@ -74,6 +74,7 @@ Danach auf dem Tablet die App **OfficeDraw** öffnen. Sie verbindet sich automat
 |---|---|
 | Größe ändern | An einer Seite oder Ecke des Rahmens ziehen |
 | Verschieben | An der dunklen Leiste oben ziehen |
+| **Anheften** | Der Rahmen folgt dem Fenster der App, in der du gerade arbeitest, auch beim Verschieben, Vergrößern und App-Wechsel. Der Rand wird grün. Ein erneuter Klick löst ihn, dann kannst du wieder frei ziehen. |
 | **Kopieren** | Legt den Ausschnitt samt Anmerkungen als Bild in die Zwischenablage, in voller Bildschirmauflösung. |
 | **Löschen** | Entfernt alle Stift-Anmerkungen, auch auf dem Tablet. Dort lassen sie sich mit „Rückgängig“ zurückholen. |
 | **Weiß / Schwarz** | Hintergrund als Whiteboard. Ein zweiter Klick zeigt wieder den Bildschirm. |
@@ -144,6 +145,7 @@ cd officedraw_app && flutter analyze && flutter test
 
 - **Windows** ist bisher nicht auf echter Hardware getestet. Entwickelt und getestet wurde mit macOS und einem HONOR-Tablet.
 - Der Ausschnitt muss auf einem einzigen Bildschirm liegen.
+- Beim Anheften an ein maximiertes Fenster bleibt oben Platz für die Rahmenleiste. Die Titelleiste des Fensters liegt dann teils außerhalb des Ausschnitts.
 - Größenänderungen strecken bereits gezeichnete Striche mit, weil sie relativ zum Ausschnitt gespeichert werden.
 - Bilder werden als JPEG mit wenigen Bildern pro Sekunde übertragen, nicht als Video. Für Präsentationen reicht das gut, für Videos nicht.
 - Die mitgelieferte APK ist mit dem Debug-Schlüssel signiert und nur für arm64 gebaut, was fast alle aktuellen Tablets abdeckt.

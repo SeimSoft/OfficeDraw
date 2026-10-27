@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 
 from PySide6.QtCore import QRect, Qt
-from PySide6.QtGui import QScreen
+from PySide6.QtGui import QGuiApplication, QScreen
 from PySide6.QtWidgets import QWidget
 
 WDA_EXCLUDEFROMCAPTURE = 0x11  # Windows 10 2004+
@@ -87,14 +87,34 @@ def exclude_from_capture(widget: QWidget) -> None:
 
 def capture_rect(rect: QRect, screen: QScreen) -> tuple[int, int, int, int]:
     """Convert a Qt rectangle (logical pixels) into the coordinates mss expects."""
-    # On Windows mss works in physical pixels, on macOS in points.
-    scale = screen.devicePixelRatio() if sys.platform == "win32" else 1.0
+    # On macOS mss works in points like Qt. On Windows it works in physical pixels;
+    # Qt keeps each screen's native origin and scales from there.
+    if sys.platform != "win32":
+        return rect.x(), rect.y(), rect.width(), rect.height()
+    scale = screen.devicePixelRatio()
+    origin = screen.geometry().topLeft()
     return (
-        round(rect.x() * scale),
-        round(rect.y() * scale),
+        round(origin.x() + (rect.x() - origin.x()) * scale),
+        round(origin.y() + (rect.y() - origin.y()) * scale),
         round(rect.width() * scale),
         round(rect.height() * scale),
     )
+
+
+def to_logical(physical: QRect) -> QRect:
+    """Inverse of capture_rect on Windows: physical pixels to Qt logical coordinates."""
+    for screen in QGuiApplication.screens():
+        scale = screen.devicePixelRatio()
+        origin = screen.geometry().topLeft()
+        native = QRect(origin, screen.geometry().size() * scale)
+        if native.contains(physical.center()):
+            return QRect(
+                round(origin.x() + (physical.x() - origin.x()) / scale),
+                round(origin.y() + (physical.y() - origin.y()) / scale),
+                round(physical.width() / scale),
+                round(physical.height() / scale),
+            )
+    return QRect(physical)
 
 
 def _ns_window(widget: QWidget):

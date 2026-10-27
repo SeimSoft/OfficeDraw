@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import mss
 from mss.exception import ScreenShotError
-from PySide6.QtCore import QObject, QRect, QRectF, Signal
+from PySide6.QtCore import QObject, QRect, QRectF, QTimer, Signal
 from PySide6.QtGui import QCursor, QGuiApplication, QImage, QPainter
 
 from .capture import CaptureThread, grab_image
@@ -14,8 +14,10 @@ from .platform_support import capture_rect
 from .server import DrawServer
 from .strokes import BACKGROUNDS, StrokeScene, paint_strokes
 from .viewer import ViewerWindow
+from .window_tracking import active_window_rect
 
 MAX_WIDTH = 1280  # frames wider than this are scaled down before they are sent
+ATTACH_POLL_MS = 250  # how often the attach mode looks for the active window
 
 
 class _Signals(QObject):
@@ -54,6 +56,10 @@ class OfficeDrawApp(QObject):
         self._frame.background_requested.connect(self._set_background)
         self._frame.clear_requested.connect(self._clear_strokes)
         self._frame.copy_requested.connect(self._copy_to_clipboard)
+        self._frame.attach_toggled.connect(self._toggle_attach)
+        self._attach_timer = QTimer(self)
+        self._attach_timer.setInterval(ATTACH_POLL_MS)
+        self._attach_timer.timeout.connect(self._follow_active_window)
         self._viewer.visibility_changed.connect(self._frame.set_viewer_visible)
 
     def start(self) -> None:
@@ -117,6 +123,22 @@ class OfficeDrawApp(QObject):
         self._viewer.update()
         if notify_tablet:
             self._server.send_json({"t": "bg", "mode": mode})
+
+    def _toggle_attach(self) -> None:
+        attached = not self._frame.is_attached()
+        self._frame.set_attached(attached)
+        if attached:
+            self._attach_timer.start()
+            self._frame.show_notice("Angeheftet – klicke in die gewünschte App")
+        else:
+            self._attach_timer.stop()
+
+    def _follow_active_window(self) -> None:
+        # While our own frame is active (e.g. right after clicking "Anheften") nothing
+        # changes; the frame jumps once the user works in another app and then tracks it.
+        window = active_window_rect()
+        if window is not None:
+            self._frame.attach_to(window)
 
     def screenshot(self) -> QImage:
         """The region as shown, with the strokes on top, at full screen resolution."""

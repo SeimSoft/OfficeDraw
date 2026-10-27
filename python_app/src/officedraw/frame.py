@@ -21,11 +21,12 @@ from .platform_support import (
 EDGE = 10  # grab band left, right and below the region
 BAR = 30  # top bar above the region
 CORNER = 22  # corners catch a bit more than the edge band
-MIN_WIDTH = 520  # room for the buttons in the top bar
+MIN_WIDTH = 610  # room for the buttons in the top bar
 NOTICE_MS = 1500  # how long a short confirmation stays in the top bar
 MIN_HEIGHT = 120
 
 ACCENT = QColor("#2E86FF")
+ACCENT_ATTACHED = QColor("#3DDC84")  # border while the frame follows an app window
 GRAB = QColor(46, 134, 255, 40)
 BAR_BACKGROUND = QColor(28, 28, 34, 230)
 BUTTON_ACTIVE = QColor("#2E86FF")
@@ -57,6 +58,7 @@ class RegionFrame(QObject):
     background_requested = Signal(str)  # "none", "white" or "black"
     clear_requested = Signal()
     copy_requested = Signal()
+    attach_toggled = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -69,6 +71,7 @@ class RegionFrame(QObject):
         self._viewer_visible = False
         self._background = "none"
         self._notice = ""
+        self._attached = False
         self._pieces = [
             _FramePiece(self, side) for side in ("top", "left", "right", "bottom")
         ]
@@ -112,6 +115,31 @@ class RegionFrame(QObject):
         self._notice = ""
         self._repaint()
 
+    def is_attached(self) -> bool:
+        return self._attached
+
+    def set_attached(self, attached: bool) -> None:
+        """While attached the frame cannot be moved or resized by hand."""
+        self._attached = attached
+        self._drag = 0
+        self._repaint()
+
+    def attach_to(self, window: QRect) -> None:
+        """Make the region cover an app window."""
+        region = QRect(window)
+        # Keep the top bar on screen; for maximized windows this leaves out their title bar.
+        if region.top() < self._top_limit():
+            region.setTop(self._top_limit())
+        region.setWidth(max(region.width(), MIN_WIDTH))
+        region.setHeight(max(region.height(), MIN_HEIGHT))
+        if region != self._region:
+            self.set_region(region)
+            self.region_changed.emit(QRect(region))
+
+    @staticmethod
+    def _top_limit() -> int:
+        return QGuiApplication.primaryScreen().virtualGeometry().top() + BAR
+
     def _repaint(self) -> None:
         for piece in self._pieces:
             piece.update()
@@ -146,6 +174,7 @@ class RegionFrame(QObject):
             ("white", "Weiß", 52, self._background == "white"),
             ("clear", "Löschen", 66, False),
             ("copy", "Kopieren", 74, False),
+            ("attach", "Anheften", 78, self._attached),
         ]
         buttons = []
         right = self.width() - EDGE - 2
@@ -162,7 +191,7 @@ class RegionFrame(QObject):
         return None
 
     def _hit(self, pos: QPoint) -> int:
-        if self._button_at(pos):
+        if self._button_at(pos) or self._attached:
             return 0
         x, y, width, height = pos.x(), pos.y(), self.width(), self.height()
         left = x < EDGE
@@ -206,6 +235,8 @@ class RegionFrame(QObject):
             self.clear_requested.emit()
         elif button == "copy":
             self.copy_requested.emit()
+        elif button == "attach":
+            self.attach_toggled.emit()
         elif button in ("white", "black"):
             # Clicking the active background again goes back to the transparent view.
             self.background_requested.emit(
@@ -243,7 +274,7 @@ class RegionFrame(QObject):
                     max(region.bottom() + delta.y(), region.top() + MIN_HEIGHT)
                 )
         # Keep the top bar on screen, otherwise the frame could not be grabbed again.
-        top_limit = QGuiApplication.primaryScreen().virtualGeometry().top() + BAR
+        top_limit = self._top_limit()
         if region.top() < top_limit:
             if self._drag == MOVE:
                 region.moveTop(top_limit)
@@ -265,7 +296,7 @@ class RegionFrame(QObject):
         inner = QRectF(EDGE, BAR, width - 2 * EDGE, height - BAR - EDGE)
 
         painter.fillRect(QRectF(0, 0, width, height), GRAB)
-        painter.setPen(QPen(ACCENT, 2))
+        painter.setPen(QPen(ACCENT_ATTACHED if self._attached else ACCENT, 2))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(inner.adjusted(-1, -1, 1, 1))
 
