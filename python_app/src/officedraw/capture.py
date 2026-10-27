@@ -14,6 +14,19 @@ from PySide6.QtGui import QImage
 JPEG_QUALITY = 70
 
 
+def grab_image(grabber: mss.base.MSSBase, rect: tuple[int, int, int, int]) -> QImage:
+    """Grab a screen rectangle at full resolution."""
+    left, top, width, height = rect
+    shot = grabber.grab({"left": left, "top": top, "width": width, "height": height})
+    return QImage(
+        bytes(shot.raw),
+        shot.width,
+        shot.height,
+        shot.width * 4,
+        QImage.Format.Format_RGB32,  # mss delivers BGRA, which matches RGB32 on little endian
+    ).copy()
+
+
 class CaptureThread(threading.Thread):
     def __init__(
         self,
@@ -23,8 +36,7 @@ class CaptureThread(threading.Thread):
         on_frame: Callable[[QImage, bytes], None],
     ) -> None:
         super().__init__(name="officedraw-capture", daemon=True)
-        left, top, width, height = rect
-        self._monitor = {"left": left, "top": top, "width": width, "height": height}
+        self._rect = rect
         self.fps = fps
         self._max_width = max_width
         self._on_frame = on_frame
@@ -32,8 +44,7 @@ class CaptureThread(threading.Thread):
 
     def set_rect(self, rect: tuple[int, int, int, int]) -> None:
         """Change the captured rectangle; takes effect with the next frame."""
-        left, top, width, height = rect
-        self._monitor = {"left": left, "top": top, "width": width, "height": height}
+        self._rect = rect
 
     def stop(self) -> None:
         self._stop.set()
@@ -44,17 +55,10 @@ class CaptureThread(threading.Thread):
             while not self._stop.is_set():
                 started = time.monotonic()
                 try:
-                    shot = grabber.grab(self._monitor)
+                    image = grab_image(grabber, self._rect)
                 except ScreenShotError:
                     self._stop.wait(1.0)
                     continue
-                image = QImage(
-                    bytes(shot.raw),
-                    shot.width,
-                    shot.height,
-                    shot.width * 4,
-                    QImage.Format.Format_RGB32,  # mss delivers BGRA, which matches RGB32 on little endian
-                ).copy()
                 if image.width() > self._max_width:
                     height = round(image.height() * self._max_width / image.width())
                     image = image.scaled(

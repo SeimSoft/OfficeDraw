@@ -7,7 +7,7 @@ also holds the connection status and the buttons of the app.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, QPoint, QRect, QRectF, Qt, Signal
+from PySide6.QtCore import QObject, QPoint, QRect, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QGuiApplication, QMouseEvent, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
@@ -21,7 +21,8 @@ from .platform_support import (
 EDGE = 10  # grab band left, right and below the region
 BAR = 30  # top bar above the region
 CORNER = 22  # corners catch a bit more than the edge band
-MIN_WIDTH = 430  # room for the buttons in the top bar
+MIN_WIDTH = 520  # room for the buttons in the top bar
+NOTICE_MS = 1500  # how long a short confirmation stays in the top bar
 MIN_HEIGHT = 120
 
 ACCENT = QColor("#2E86FF")
@@ -55,6 +56,7 @@ class RegionFrame(QObject):
     quit_requested = Signal()
     background_requested = Signal(str)  # "none", "white" or "black"
     clear_requested = Signal()
+    copy_requested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -66,6 +68,7 @@ class RegionFrame(QObject):
         self._status = "Warte auf Tablet …"
         self._viewer_visible = False
         self._background = "none"
+        self._notice = ""
         self._pieces = [
             _FramePiece(self, side) for side in ("top", "left", "right", "bottom")
         ]
@@ -97,6 +100,16 @@ class RegionFrame(QObject):
 
     def set_background(self, mode: str) -> None:
         self._background = mode
+        self._repaint()
+
+    def show_notice(self, text: str) -> None:
+        """Show a short confirmation in place of the status text."""
+        self._notice = text
+        self._repaint()
+        QTimer.singleShot(NOTICE_MS, self._clear_notice)
+
+    def _clear_notice(self) -> None:
+        self._notice = ""
         self._repaint()
 
     def _repaint(self) -> None:
@@ -132,6 +145,7 @@ class RegionFrame(QObject):
             ("black", "Schwarz", 70, self._background == "black"),
             ("white", "Weiß", 52, self._background == "white"),
             ("clear", "Löschen", 66, False),
+            ("copy", "Kopieren", 74, False),
         ]
         buttons = []
         right = self.width() - EDGE - 2
@@ -190,6 +204,8 @@ class RegionFrame(QObject):
             self.viewer_toggled.emit()
         elif button == "clear":
             self.clear_requested.emit()
+        elif button == "copy":
+            self.copy_requested.emit()
         elif button in ("white", "black"):
             # Clicking the active background again goes back to the transparent view.
             self.background_requested.emit(
@@ -261,11 +277,12 @@ class RegionFrame(QObject):
         painter.setBrush(CONNECTED if self._connected else WAITING)
         painter.drawEllipse(QRectF(bar.left() + 10, bar.center().y() - 5, 10, 10))
 
-        status = (
-            "OfficeDraw · Tablet verbunden"
-            if self._connected
-            else f"OfficeDraw · {self._status}"
-        )
+        if self._notice:
+            status = f"OfficeDraw · {self._notice}"
+        elif self._connected:
+            status = "OfficeDraw · Tablet verbunden"
+        else:
+            status = f"OfficeDraw · {self._status}"
         buttons = self._buttons()
         text_rect = QRectF(
             bar.left() + 28,

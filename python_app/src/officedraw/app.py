@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, QRect, Signal
-from PySide6.QtGui import QCursor, QGuiApplication, QImage
+import mss
+from mss.exception import ScreenShotError
+from PySide6.QtCore import QObject, QRect, QRectF, Signal
+from PySide6.QtGui import QCursor, QGuiApplication, QImage, QPainter
 
-from .capture import CaptureThread
+from .capture import CaptureThread, grab_image
 from .frame import RegionFrame
 from .overlay import OverlayWindow
 from .platform_support import capture_rect
 from .server import DrawServer
-from .strokes import BACKGROUNDS, StrokeScene
+from .strokes import BACKGROUNDS, StrokeScene, paint_strokes
 from .viewer import ViewerWindow
 
 MAX_WIDTH = 1280  # frames wider than this are scaled down before they are sent
@@ -51,6 +53,7 @@ class OfficeDrawApp(QObject):
         self._frame.quit_requested.connect(self.quit)
         self._frame.background_requested.connect(self._set_background)
         self._frame.clear_requested.connect(self._clear_strokes)
+        self._frame.copy_requested.connect(self._copy_to_clipboard)
         self._viewer.visibility_changed.connect(self._frame.set_viewer_visible)
 
     def start(self) -> None:
@@ -114,6 +117,33 @@ class OfficeDrawApp(QObject):
         self._viewer.update()
         if notify_tablet:
             self._server.send_json({"t": "bg", "mode": mode})
+
+    def screenshot(self) -> QImage:
+        """The region as shown, with the strokes on top, at full screen resolution."""
+        region = self._frame.region()
+        screen = (
+            QGuiApplication.screenAt(region.center()) or QGuiApplication.primaryScreen()
+        )
+        # A fresh grab is sharper than the scaled stream frame (e.g. on Retina screens).
+        # Our own windows are excluded from capture, so only the apps behind are in it.
+        with mss.mss() as grabber:
+            image = grab_image(grabber, capture_rect(region, screen))
+        background = BACKGROUNDS.get(self._scene.background)
+        if background is not None:
+            image.fill(background)
+        painter = QPainter(image)
+        paint_strokes(painter, QRectF(image.rect()), self._scene.strokes.values())
+        painter.end()
+        return image
+
+    def _copy_to_clipboard(self) -> None:
+        try:
+            image = self.screenshot()
+        except ScreenShotError:
+            self._frame.show_notice("Kopieren fehlgeschlagen")
+            return
+        QGuiApplication.clipboard().setImage(image)
+        self._frame.show_notice("Bild in Zwischenablage kopiert ✓")
 
     def _clear_strokes(self) -> None:
         # The tablet owns the drawing (it re-sends everything on connect), so it is

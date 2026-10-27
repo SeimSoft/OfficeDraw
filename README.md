@@ -74,6 +74,7 @@ Danach auf dem Tablet die App **OfficeDraw** öffnen. Sie verbindet sich automat
 |---|---|
 | Größe ändern | An einer Seite oder Ecke des Rahmens ziehen |
 | Verschieben | An der dunklen Leiste oben ziehen |
+| **Kopieren** | Legt den Ausschnitt samt Anmerkungen als Bild in die Zwischenablage, in voller Bildschirmauflösung. |
 | **Löschen** | Entfernt alle Stift-Anmerkungen, auch auf dem Tablet. Dort lassen sie sich mit „Rückgängig“ zurückholen. |
 | **Weiß / Schwarz** | Hintergrund als Whiteboard. Ein zweiter Klick zeigt wieder den Bildschirm. |
 | **Teilen** | Blendet das Fenster „OfficeDraw – Ausschnitt“ für Teams ein und aus |
